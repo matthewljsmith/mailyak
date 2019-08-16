@@ -33,6 +33,24 @@ type MailYak struct {
 	date           string
 }
 
+// NewBlank returns an instance of MailYak
+func NewBlank() *MailYak {
+	return &MailYak{
+		headers:        map[string]string{},
+		trimRegex:      regexp.MustCompile("\r?\n"),
+		writeBccHeader: false,
+		date:           time.Now().Format(time.RFC1123Z),
+	}
+}
+
+func (m *MailYak) Host(value string){
+	m.host = value
+}
+
+func (m *MailYak) Auth(value smtp.Auth){
+	m.auth = value
+}
+
 // New returns an instance of MailYak using host as the SMTP server, and
 // authenticating with auth where required.
 //
