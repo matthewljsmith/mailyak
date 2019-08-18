@@ -33,6 +33,17 @@ type MailYak struct {
 	date           string
 }
 
+// add some expects for the various fields for testing
+func (my *MailYak) GetToAddrs() []string          { return my.toAddrs }
+func (my *MailYak) GetCCAddrs() []string          { return my.ccAddrs }
+func (my *MailYak) GetBCCAddrs() []string         { return my.bccAddrs }
+func (my *MailYak) GetSubject() string            { return my.subject }
+func (my *MailYak) GetFromAddr() string           { return my.fromAddr }
+func (my *MailYak) GetFromName() string           { return my.fromName }
+func (my *MailYak) GetReplyTo() string            { return my.replyTo }
+func (my *MailYak) GetHeaders() map[string]string { return my.headers }
+func (my *MailYak) GetAttachments() []attachment  { return my.attachments }
+
 // NewBlank returns an instance of MailYak
 func NewBlank() *MailYak {
 	return &MailYak{
@@ -43,11 +54,11 @@ func NewBlank() *MailYak {
 	}
 }
 
-func (m *MailYak) Host(value string){
+func (m *MailYak) Host(value string) {
 	m.host = value
 }
 
-func (m *MailYak) Auth(value smtp.Auth){
+func (m *MailYak) Auth(value smtp.Auth) {
 	m.auth = value
 }
 
