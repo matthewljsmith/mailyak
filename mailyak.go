@@ -2,6 +2,7 @@ package mailyak
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"net/smtp"
 	"regexp"
@@ -89,19 +90,71 @@ func New(host string, auth smtp.Auth) *MailYak {
 //
 // Attachments are read when Send() is called, and any connection/authentication
 // errors will be returned by Send().
-func (m *MailYak) Send() error {
+func (m *MailYak) Send(localHostName string) (int, string, error) {
+
 	buf, err := m.buildMime()
 	if err != nil {
-		return err
+		return -1, "", err
 	}
 
-	return smtp.SendMail(
-		m.host,
-		m.auth,
-		m.fromAddr,
-		append(append(m.toAddrs, m.ccAddrs...), m.bccAddrs...),
-		buf.Bytes(),
-	)
+	// dial the host to get an smtp conn
+	smtpClient, err := smtp.Dial(m.host)
+	if err != nil {
+		return -1, "", err
+	}
+
+	// make sure to quit client
+	defer smtpClient.Close()
+
+	// say hello to the smtp client
+	if err = smtpClient.Hello(localHostName); err != nil {
+		return -1, "", err
+	}
+
+	// if TLS is available use it
+	if ok, _ := smtpClient.Extension("STARTTLS"); ok {
+		config := &tls.Config{ServerName: localHostName}
+		if err = smtpClient.StartTLS(config); err != nil {
+			return -1, "", err
+		}
+	}
+
+	// if we have auth
+	if hasAuth, _ := smtpClient.Extension("AUTH"); hasAuth && m.auth != nil {
+		smtpClient.Auth(m.auth)
+	}
+
+	// start the mailing
+	if err = smtpClient.Mail(m.fromAddr); err != nil {
+		return -1, "", err
+	}
+
+	// set the to addresses
+	for _, addr := range m.toAddrs {
+		if err = smtpClient.Rcpt(addr); err != nil {
+			return -1, "", err
+		}
+	}
+
+	// grab the underlying data writer
+	w, err := smtpClient.Data()
+	if err != nil {
+		return -1, "", err
+	}
+
+	// write the email string
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		return -1, "", err
+	}
+
+	err = w.Close()
+	if err != nil {
+		return -1, "", err
+	}
+
+	// return the response from the smtpClient
+	return smtpClient.Text.ReadResponse(0)
 }
 
 // MimeBuf returns the buffer containing all the RAW MIME data.
